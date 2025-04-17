@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cute Planner V-1.0-A</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      font-family: 'Share Tech Mono', 'Orbitron', sans-serif;
+      background: linear-gradient(-45deg, #0f0f1a, #090911, #1a1a2e, #0f0f1a);
+      background-size: 400% 400%;
+      animation: gradientMove 15s ease infinite;
+      overflow: auto;
+      color: white;
+      height: 100%;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .node {
+      position: absolute;
+      min-width: 200px;
+      max-width: 400px;
+      padding: 16px;
+      border-radius: 1rem;
+      background: rgba(30, 30, 40, 0.85);
+      box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+      cursor: move;
+      user-select: none;
+      backdrop-filter: blur(6px);
+      transition: background-color 2s ease-in-out;
+      animation: pulseGlow 4s infinite ease-in-out;
+      overflow: hidden;
+    }
+
+    .content {
+      outline: none;
+    }
+
+    .preview {
+      display: none;
+      margin-top: 10px;
+      color: #ccc;
+    }
+
+    .node:hover {
+      background-color: rgba(50, 0, 70, 0.95);
+    }
+
+    .connector, .connector-point {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      border-radius: 9999px;
+      background-color: #f0f;
+      cursor: crosshair;
+      user-select: none;
+      pointer-events: auto;
+    }
+
+    .ui-button {
+      position: relative;
+      transition: all 0.3s ease-in-out;
+      transform-origin: center;
+      overflow: hidden;
+    }
+
+    .ui-button::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(120deg, rgba(255,255,255,0.2), transparent 60%);
+      transform: rotate(25deg);
+      transition: all 0.5s ease-in-out;
+      pointer-events: none;
+    }
+
+    .ui-button:hover {
+      transform: scale(1.08) rotate(0.5deg);
+      box-shadow: 0 8px 20px rgba(255, 0, 255, 0.4);
+    }
+
+    .ui-button:hover::after {
+      top: -30%;
+      left: 100%;
+      transition: all 0.6s ease-in-out;
+    }
+
+    .ui-button:active {
+      transform: scale(0.96);
+      box-shadow: 0 4px 10px rgba(255, 0, 255, 0.6);
+    }
+
+    .connector { right: -6px; top: 50%; transform: translateY(-50%); }
+    .connector-point.top { top: -6px; left: 50%; transform: translateX(-50%); }
+    .connector-point.bottom { bottom: -6px; left: 50%; transform: translateX(-50%); }
+    .connector-point.left { left: -6px; top: 50%; transform: translateY(-50%); }
+    .connector-point.right { right: -6px; top: 50%; transform: translateY(-50%); }
+
+    svg path {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.4);
+      stroke-width: 2;
+      stroke-dasharray: 8;
+      animation: dash 3s linear infinite;
+    }
+
+    @keyframes dash {
+      to { stroke-dashoffset: -1000; }
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      cursor: pointer;
+      font-size: 16px;
+      color: #ccc;
+      user-select: none;
+    }
+
+    .ui-button:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 20px #f0f;
+    }
+
+    .toolbar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      display: flex;
+      gap: 12px;
+      z-index: 50;
+    }
+
+    .resize-handle {
+      background: #fff;
+      opacity: 0.5;
+      border-radius: 4px;
+    }
+
+    .resize-handle:hover {
+      opacity: 1;
+      box-shadow: 0 0 10px #fff;
+    }
+
+    .connector:hover, .connector-point:hover {
+      background-color: white;
+      box-shadow: 0 0 10px white;
+    }
+
+    svg path:hover {
+      stroke: #fff;
+      stroke-width: 3;
+      filter: drop-shadow(0 0 6px white);
+    }
+
+    .node.selected {
+      border: 2px solid white;
+    }
+
+    .resize-handle.right { right: -5px; top: 0; bottom: 0; cursor: ew-resize; }
+    .resize-handle.bottom { bottom: -5px; left: 0; right: 0; cursor: ns-resize; }
+    .resize-handle.corner {
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      right: 0;
+      bottom: 0;
+      background: white;
+      border-top-left-radius: 4px;
+      cursor: nwse-resize;
+      z-index: 10;
+      opacity: 0.5;
+    }
+
+    .resize-handle.corner:hover {
+      opacity: 1;
+      box-shadow: 0 0 10px #fff;
+    }
+
+  </style>
+</head>
+<body>
+  <svg id="canvas">
+  </svg>
+  <div id="nodeContainer"></div>
+  <div class="toolbar">
+    <button id="addNode" class="ui-button bg-pink-500 hover:bg-pink-600 text-white px-4 py-2 rounded-lg">➕ Node</button>
+    <button id="exportBtn" class="ui-button bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">⬇️ Export</button>
+    <input type="file" id="importInput" hidden />
+    <button id="importBtn" class="ui-button bg-yellow-500 hover:bg-yellow-600 text-black px-4 py-2 rounded-lg">⬆️ Import</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const nodeContainer = document.getElementById("nodeContainer");
+    const nodes = [];
+    let connections = [];
+    let draggingLine = null;
+    let startConnector = null;
+
+    function makeDraggable(el) {
+      let offsetX, offsetY, isDragging = false;
+      const connectors = el.querySelectorAll(".connector, .connector-point");
+
+      el.addEventListener("mousedown", (e) => {
+        if ([...connectors].includes(e.target)) return;
+        offsetX = e.clientX - el.offsetLeft;
+        offsetY = e.clientY - el.offsetTop;
+        isDragging = true;
+      });
+
+      document.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+          el.style.left = (e.clientX - offsetX) + 'px';
+          el.style.top = (e.clientY - offsetY) + 'px';
+          drawLines();
+          renderMinimap();
+        } else {
+            renderMinimap();
+        }
+      });
+
+      document.addEventListener("mouseup", () => isDragging = false);
+
+      connectors.forEach(conn => {
+        conn.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          startConnector = conn;
+          draggingLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          canvas.appendChild(draggingLine);
+        });
+
+        conn.addEventListener("contextmenu", (e) => {
+          e.preventDefault();
+          connections = connections.filter(c => c[0] !== conn && c[1] !== conn);
+          drawLines();
+          renderMinimap();
+        });
+      });
+    }
+
+    document.addEventListener("mousemove", (e) => {
+      if (draggingLine && startConnector) {
+        const r = startConnector.getBoundingClientRect();
+        const [x1, y1, x2, y2] = [r.left+6, r.top+6, e.clientX, e.clientY];
+        draggingLine.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
+      }
+    });
+
+    document.addEventListener("mouseup", (e) => {
+      if (!draggingLine || !startConnector) return;
+      const endConnector = document.elementFromPoint(e.clientX, e.clientY);
+      if (endConnector?.classList.contains("connector") || endConnector?.classList.contains("connector-point")) {
+        connections.push([startConnector, endConnector]);
+      }
+      draggingLine.remove(); draggingLine = null; startConnector = null; drawLines();
+    });
+
+    function drawLines() {
+      canvas.querySelectorAll("path").forEach(p => p.remove());
+      connections.forEach(([a, b]) => {
+          const ra = a.getBoundingClientRect();
+          const rb = b.getBoundingClientRect();
+          const [x1, y1, x2, y2] = [ra.left + 6, ra.top + 6, rb.left + 6, rb.top + 6];
+  
+          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+          path.setAttribute("d", `M${x1},${y1} C${x1 + 50},${y1} ${x2 - 50},${y2} ${x2},${y2}`);
+          path.setAttribute("style", "stroke: rgba(255, 255, 255, 0.4); stroke-width: 2; stroke-dasharray: 5, 5; animation: dash 3s linear infinite;");
+          canvas.appendChild(path);
+      });
+      }
+
+    function createNode(content = "**New Node**", top = 100, left = 100) {
+      const newNode = document.createElement("div");
+      newNode.className = "node";
+      newNode.style.top = `${top}px`;
+      newNode.style.left = `${left}px`;
+      newNode.dataset.id = crypto.randomUUID();
+
+      const contentDiv = document.createElement("div");
+      contentDiv.className = "content";
+      contentDiv.contentEditable = true;
+      contentDiv.spellcheck = false;
+      contentDiv.innerText = content;
+
+      const previewDiv = document.createElement("div");
+      previewDiv.className = "preview";
+
+      contentDiv.addEventListener("input", () => {
+        previewDiv.innerHTML = marked.parse(contentDiv.innerText);
+      });
+
+      document.addEventListener("click", () => {
+        nodes.forEach(n => n.classList.remove("selected"));
+      });
+
+      newNode.addEventListener("click", (e) => {
+        e.stopPropagation();
+        nodes.forEach(n => n.classList.remove("selected"));
+        newNode.classList.add("selected");
+      });
+
+     
+      contentDiv.addEventListener("keydown", (e) => {
+        const forbidden = ["connector", "connector-point", "resize-handle", "delete-btn"];
+        const selection = window.getSelection();
+        if (selection && selection.anchorNode) {
+          let node = selection.anchorNode.nodeType === 3 ? selection.anchorNode.parentNode : selection.anchorNode;
+          if (forbidden.some(cls => node.classList?.contains(cls))) {
+            e.preventDefault();
+          }
+        }
+      });
+
+      const deleteBtn = document.createElement("div");
+      deleteBtn.className = "delete-btn";
+      deleteBtn.innerText = "❌";
+      deleteBtn.onclick = () => {
+        connections = connections.filter(c => c[0].parentElement !== newNode && c[1].parentElement !== newNode);
+        newNode.remove();
+        drawLines();
+        renderMinimap();
+      };
+
+      newNode.append(contentDiv, previewDiv, deleteBtn);
+
+      ['connector', 'top', 'right', 'bottom', 'left'].forEach(pos => {
+        const conn = document.createElement("div");
+        conn.className = pos === 'connector' ? "connector" : `connector-point ${pos}`;
+        newNode.appendChild(conn);
+      });
+
+     
+      const rightHandle = document.createElement("div");
+      rightHandle.className = "resize-handle right";
+      newNode.appendChild(rightHandle);
+
+      const bottomHandle = document.createElement("div");
+      bottomHandle.className = "resize-handle bottom";
+      newNode.appendChild(bottomHandle);
+
+      const cornerHandle = document.createElement("div");
+      cornerHandle.className = "resize-handle corner";
+      newNode.appendChild(cornerHandle);
+
+      [rightHandle, bottomHandle, cornerHandle].forEach(handle => {
+        let startX, startY, startW, startH;
+        handle.addEventListener("mousedown", (e) => {
+          e.stopPropagation();
+          startX = e.clientX;
+          startY = e.clientY;
+          startW = newNode.offsetWidth;
+          startH = newNode.offsetHeight;
+          const mouseMoveHandler = (e) => {
+            const diffX = e.clientX - startX;
+            const diffY = e.clientY - startY;
+            if (handle === cornerHandle) {
+              newNode.style.width = startW + diffX + 'px';
+              newNode.style.height = startH + diffY + 'px';
+            } else if (handle === rightHandle) {
+              newNode.style.width = startW + diffX + 'px';
+            } else if (handle === bottomHandle) {
+              newNode.style.height = startH + diffY + 'px';
+            }
+            drawLines();
+          };
+          document.addEventListener("mousemove", mouseMoveHandler);
+          document.addEventListener("mouseup", () => {
+            document.removeEventListener("mousemove", mouseMoveHandler);
+            document.removeEventListener("mouseup", () => {});
+          });
+        });
+      });
+
+      makeDraggable(newNode);
+      nodeContainer.appendChild(newNode);
+      nodes.push(newNode);
+      renderMinimap();
+      return newNode;
+    }
+
+    document.getElementById("addNode").onclick = () => createNode();
+
+    document.getElementById("exportBtn").onclick = () => {
+    const nodeData = nodes.map(n => ({
+        id: n.dataset.id,
+        content: n.querySelector(".content").innerText,
+        position: { top: n.offsetTop, left: n.offsetLeft },
+        size: { width: n.offsetWidth, height: n.offsetHeight }
+    }));
+
+    const connectionData = connections.map(([a, b]) => {
+        const fromId = a.closest(".node").dataset.id;
+        const toId = b.closest(".node").dataset.id;
+        const fromPos = [...a.classList].find(cls => cls !== "connector" && cls.includes("top") || cls.includes("bottom") || cls.includes("left") || cls.includes("right")) || "connector";
+        const toPos = [...b.classList].find(cls => cls !== "connector" && cls.includes("top") || cls.includes("bottom") || cls.includes("left") || cls.includes("right")) || "connector";
+        return { from: fromId, fromPos, to: toId, toPos };
+    });
+
+    const data = JSON.stringify({ nodes: nodeData, connections: connectionData });
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export.json";
+    a.click();
+    };
+
+
+    document.getElementById("importBtn").onclick = () => document.getElementById("importInput").click();
+
+    document.getElementById("importInput").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+        const data = JSON.parse(event.target.result);
+        const idMap = {};
+
+       
+        nodes.forEach(n => n.remove());
+        nodes.length = 0;
+        connections.length = 0;
+
+       
+        data.nodes.forEach(n => {
+            const node = createNode(n.content, n.position.top, n.position.left);
+            node.style.width = n.size.width + "px";
+            node.style.height = n.size.height + "px";
+            node.dataset.id = n.id;
+            idMap[n.id] = node;
+        });
+
+       
+        setTimeout(() => {
+            data.connections.forEach(link => {
+            const fromNode = idMap[link.from];
+            const toNode = idMap[link.to];
+            const fromConn = fromNode.querySelector(`.connector-point.${link.fromPos}`) || fromNode.querySelector(".connector");
+            const toConn = toNode.querySelector(`.connector-point.${link.toPos}`) || toNode.querySelector(".connector");
+            if (fromConn && toConn) connections.push([fromConn, toConn]);
+            });
+            drawLines();
+            renderMinimap();
+        }, 50);
+        };
+        reader.readAsText(file);
+    }
+    });
+
+    const minimap = document.getElementById("minimap");
+    const minimapCtx = minimap.getContext("2d");
+
+    function renderMinimap() {
+      const minimap = document.getElementById("minimap");
+      const minimapCtx = minimap.getContext("2d");
+    
+      if (!nodes.length) {
+        minimapCtx.clearRect(0, 0, minimap.width, minimap.height);
+        return;
+      }
+    
+     
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      nodes.forEach(node => {
+        const x = node.offsetLeft;
+        const y = node.offsetTop;
+        const w = node.offsetWidth;
+        const h = node.offsetHeight;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+        maxY = Math.max(maxY, y + h);
+      });
+
+     
+      minimapCtx.strokeStyle = "#fff";
+      minimapCtx.lineWidth = 1;
+  
+      connections.forEach(([a, b]) => {
+      const getPos = (conn) => {
+          const parent = conn.parentElement;
+          const x = (parent.offsetLeft - minX + conn.offsetLeft + conn.offsetWidth / 2) * scale;
+          const y = (parent.offsetTop - minY + conn.offsetTop + conn.offsetHeight / 2) * scale;
+          return { x, y };
+      };
+  
+      const p1 = getPos(a);
+      const p2 = getPos(b);
+  
+      minimapCtx.beginPath();
+      minimapCtx.moveTo(p1.x, p1.y);
+      minimapCtx.lineTo(p2.x, p2.y);
+      minimapCtx.stroke();
+      });
+
+      const padding = 40;
+      const contentWidth = maxX - minX + padding;
+      const contentHeight = maxY - minY + padding;
+      const scaleX = minimap.width / contentWidth;
+      const scaleY = minimap.height / contentHeight;
+      const scale = Math.min(scaleX, scaleY);
+    
+      minimapCtx.clearRect(0, 0, minimap.width, minimap.height);
+     
+      minimapCtx.fillStyle = "#CC00CC";
+    
+      nodes.forEach(node => {
+        const x = (node.offsetLeft - minX) * scale;
+        const y = (node.offsetTop - minY) * scale;
+        const w = node.offsetWidth * scale;
+        const h = node.offsetHeight * scale;
+        minimapCtx.fillRect(x, y, w, h);
+      });
+     
+      const scrollLeft = window.scrollX;
+      const scrollTop = window.scrollY;
+      const viewportX = (scrollLeft - minX) * scale;
+      const viewportY = (scrollTop - minY) * scale;
+      const viewportW = window.innerWidth * scale;
+      const viewportH = window.innerHeight * scale;
+      minimapCtx.strokeStyle = "white";
+      minimapCtx.lineWidth = 1;
+      minimapCtx.strokeRect(viewportX, viewportY, viewportW, viewportH);
+    }
+    minimap.addEventListener("click", (e) => {
+    const rect = minimap.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const clickY = e.clientY - rect.top;
+   
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(node => {
+        const x = node.offsetLeft;
+        const y = node.offsetTop;
+        const w = node.offsetWidth;
+        const h = node.offsetHeight;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+        maxY = Math.max(maxY, y + h);
+    });
+
+    const padding = 40;
+    const contentWidth = maxX - minX + padding;
+    const contentHeight = maxY - minY + padding;
+    const scaleX = minimap.width / contentWidth;
+    const scaleY = minimap.height / contentHeight;
+    const scale = Math.min(scaleX, scaleY);
+
+    const targetX = (clickX / scale) + minX - window.innerWidth / 2;
+    const targetY = (clickY / scale) + minY - window.innerHeight / 2;
+
+    window.scrollTo({ top: targetY, left: targetX, behavior: "smooth" });
+    });
+
+  </script>
+  <canvas id="minimap" width="200" height="150"
+    style="position: fixed; top: 16px; right: 16px; z-index: 100; border: 2px solid #888; background: rgba(0,0,0,0.4); border-radius: 0.5rem;">
+  </canvas>
+</body>
+</html>
