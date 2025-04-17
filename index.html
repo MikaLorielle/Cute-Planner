@@ -111,9 +111,9 @@
     svg path {
       fill: none;
       stroke: rgba(255, 255, 255, 0.4);
-      stroke-width: 2;
+      stroke-width: 4;
       stroke-dasharray: 8;
-      animation: dash 3s linear infinite;
+      animation: dash 8s linear infinite;
     }
 
     @keyframes dash {
@@ -286,7 +286,7 @@
   
           const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
           path.setAttribute("d", `M${x1},${y1} C${x1 + 50},${y1} ${x2 - 50},${y2} ${x2},${y2}`);
-          path.setAttribute("style", "stroke: rgba(255, 255, 255, 0.4); stroke-width: 2; stroke-dasharray: 5, 5; animation: dash 3s linear infinite;");
+          path.setAttribute("style", "stroke: rgba(255, 255, 255, 0.4); stroke-width: 4; stroke-dasharray: 5, 5; animation: dash 8s linear infinite;");
           canvas.appendChild(path);
       });
       }
