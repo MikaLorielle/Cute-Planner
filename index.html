@@ -337,8 +337,17 @@
       deleteBtn.className = "delete-btn";
       deleteBtn.innerText = "❌";
       deleteBtn.onclick = () => {
+       
         connections = connections.filter(c => c[0].parentElement !== newNode && c[1].parentElement !== newNode);
+      
         newNode.remove();
+      
+      
+        const index = nodes.indexOf(newNode);
+        if (index > -1) {
+          nodes.splice(index, 1);
+        }
+      
         drawLines();
         renderMinimap();
       };
