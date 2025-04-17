@@ -265,6 +265,8 @@
         const r = startConnector.getBoundingClientRect();
         const [x1, y1, x2, y2] = [r.left+6, r.top+6, e.clientX, e.clientY];
         draggingLine.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
+      } else {
+        renderMinimap();
       }
     });
 
@@ -502,27 +504,32 @@
         maxX = Math.max(maxX, x + w);
         maxY = Math.max(maxY, y + h);
       });
-
      
       minimapCtx.strokeStyle = "#fff";
       minimapCtx.lineWidth = 1;
   
       connections.forEach(([a, b]) => {
-      const getPos = (conn) => {
+      try {
+        const getPos = (conn) => {
           const parent = conn.parentElement;
-          const x = (parent.offsetLeft - minX + conn.offsetLeft + conn.offsetWidth / 2) * scale;
-          const y = (parent.offsetTop - minY + conn.offsetTop + conn.offsetHeight / 2) * scale;
+          if (!parent) return null;
+          const x = parent.offsetLeft - minX + conn.offsetLeft + 7;
+          const y = parent.offsetTop - minY + conn.offsetTop + 7;
           return { x, y };
-      };
-  
-      const p1 = getPos(a);
-      const p2 = getPos(b);
-  
-      minimapCtx.beginPath();
-      minimapCtx.moveTo(p1.x, p1.y);
-      minimapCtx.lineTo(p2.x, p2.y);
-      minimapCtx.stroke();
-      });
+        };
+
+        const from = getPos(a);
+        const to = getPos(b);
+        if (!from || !to) return;
+
+        minimapCtx.beginPath();
+        minimapCtx.moveTo(from.x, from.y);
+        minimapCtx.lineTo(to.x, to.y);
+        minimapCtx.stroke();
+      } catch (e) {
+        console.warn("Error rendering minimap line:", e);
+      }
+    });
 
       const padding = 40;
       const contentWidth = maxX - minX + padding;
@@ -589,3 +596,4 @@
   </canvas>
 </body>
 </html>
+
