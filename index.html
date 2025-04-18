@@ -197,6 +197,11 @@
       opacity: 1;
       box-shadow: 0 0 10px #fff;
     }
+    .node .content img {
+      display: block;
+      max-width: 100%;
+      margin: 8px 0;
+    }
 
   </style>
 </head>
@@ -310,8 +315,31 @@
       previewDiv.className = "preview";
 
       contentDiv.addEventListener("input", () => {
-        previewDiv.innerHTML = marked.parse(contentDiv.innerText);
+        previewDiv.innerHTML = marked.parse(contentDiv.innerHTML);
       });
+
+      contentDiv.addEventListener("paste", (event) => {
+        const items = (event.clipboardData || event.originalEvent.clipboardData).items;
+        for (const item of items) {
+          if (item.type.indexOf("image") !== -1) {
+            const blob = item.getAsFile();
+            const reader = new FileReader();
+            reader.onload = function(event) {
+              const img = document.createElement("img");
+              img.src = event.target.result;
+              img.style.maxWidth = "100%";
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount > 0) {
+                const range = sel.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(img);
+              }
+            };
+            reader.readAsDataURL(blob);
+          }
+        }
+      });
+
 
       document.addEventListener("click", () => {
         nodes.forEach(n => n.classList.remove("selected"));
@@ -596,4 +624,3 @@
   </canvas>
 </body>
 </html>
-
