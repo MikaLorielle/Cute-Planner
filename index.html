@@ -27,8 +27,6 @@
 
     .node {
       position: absolute;
-      min-width: 200px;
-      max-width: 400px;
       padding: 16px;
       border-radius: 1rem;
       background: rgba(30, 30, 40, 0.85);
@@ -122,11 +120,12 @@
 
     #canvas {
       position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
+      top: 0;
+      left: 0;
       z-index: 0;
       pointer-events: none;
     }
+
 
     .delete-btn {
       position: absolute;
@@ -240,9 +239,11 @@
           el.style.left = (e.clientX - offsetX) + 'px';
           el.style.top = (e.clientY - offsetY) + 'px';
           drawLines();
+          updateCanvasSize();
           renderMinimap();
         } else {
             renderMinimap();
+            updateCanvasSize();
         }
       });
 
@@ -268,8 +269,18 @@
     document.addEventListener("mousemove", (e) => {
       if (draggingLine && startConnector) {
         const r = startConnector.getBoundingClientRect();
-        const [x1, y1, x2, y2] = [r.left+6, r.top+6, e.clientX, e.clientY];
+
+        const scrollX = window.scrollX;
+        const scrollY = window.scrollY;
+
+        const [x1, y1, x2, y2] = [
+          r.left + 6 + scrollX,
+          r.top + 6 + scrollY,
+          e.clientX + scrollX,
+          e.clientY + scrollY
+        ];
         draggingLine.setAttribute("d", `M${x1},${y1} C${x1+50},${y1} ${x2-50},${y2} ${x2},${y2}`);
+
       } else {
         renderMinimap();
       }
@@ -285,18 +296,43 @@
     });
 
     function drawLines() {
+      updateCanvasSize();
       canvas.querySelectorAll("path").forEach(p => p.remove());
+
+      const scrollX = window.scrollX;
+      const scrollY = window.scrollY;
+
       connections.forEach(([a, b]) => {
-          const ra = a.getBoundingClientRect();
-          const rb = b.getBoundingClientRect();
-          const [x1, y1, x2, y2] = [ra.left + 6, ra.top + 6, rb.left + 6, rb.top + 6];
-  
-          const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-          path.setAttribute("d", `M${x1},${y1} C${x1 + 50},${y1} ${x2 - 50},${y2} ${x2},${y2}`);
-          path.setAttribute("style", "stroke: rgba(255, 255, 255, 0.4); stroke-width: 4; stroke-dasharray: 5, 5; animation: dash 8s linear infinite;");
-          canvas.appendChild(path);
+        const ra = a.getBoundingClientRect();
+        const rb = b.getBoundingClientRect();
+
+        const x1 = ra.left + 6 + scrollX;
+        const y1 = ra.top + 6 + scrollY;
+        const x2 = rb.left + 6 + scrollX;
+        const y2 = rb.top + 6 + scrollY;
+
+        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        path.setAttribute("d", `M${x1},${y1} C${x1 + 50},${y1} ${x2 - 50},${y2} ${x2},${y2}`);
+        path.setAttribute("style", "stroke: rgba(255, 255, 255, 0.4); stroke-width: 4; stroke-dasharray: 5, 5; animation: dash 8s linear infinite;");
+        canvas.appendChild(path);
       });
-      }
+
+      updateCanvasSize();
+    }
+
+    function updateCanvasSize() {
+      let maxX = 0, maxY = 0;
+      nodes.forEach(node => {
+        const x = node.offsetLeft + node.offsetWidth;
+        const y = node.offsetTop + node.offsetHeight;
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      });
+
+      canvas.setAttribute("width", maxX + 300);
+      canvas.setAttribute("height", maxY + 300);
+    }
+
 
     function createNode(content = "**New Node**", top = 100, left = 100) {
       const newNode = document.createElement("div");
@@ -444,7 +480,7 @@
     document.getElementById("exportBtn").onclick = () => {
     const nodeData = nodes.map(n => ({
         id: n.dataset.id,
-        content: n.querySelector(".content").innerText,
+        content: n.querySelector(".content").innerHTML,
         position: { top: n.offsetTop, left: n.offsetLeft },
         size: { width: n.offsetWidth, height: n.offsetHeight }
     }));
@@ -466,7 +502,6 @@
     a.click();
     };
 
-
     document.getElementById("importBtn").onclick = () => document.getElementById("importInput").click();
 
     document.getElementById("importInput").addEventListener("change", (e) => {
@@ -484,12 +519,14 @@
 
        
         data.nodes.forEach(n => {
-            const node = createNode(n.content, n.position.top, n.position.left);
+            const node = createNode("", n.position.top, n.position.left);
+            node.querySelector(".content").innerHTML = n.content;
             node.style.width = n.size.width + "px";
             node.style.height = n.size.height + "px";
             node.dataset.id = n.id;
             idMap[n.id] = node;
         });
+
 
        
         setTimeout(() => {
